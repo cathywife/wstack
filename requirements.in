@@ -1,0 +1,8 @@
+ujson
+pexpect
+python-ldap
+jinja2
+redis
+requests
+tornado
+circus

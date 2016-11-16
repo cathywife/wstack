@@ -1,0 +1,76 @@
+<!--
+WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
+  virsh edit vm1
+or other application using the libvirt API.
+-->
+
+<domain type='kvm'>
+  <name>{{ name }}</name>
+  <uuid>{{ uuid }}</uuid>
+  <memory unit='KiB'>{{ memory }}</memory>
+  <currentMemory unit='KiB'>{{ currentmemory }}</currentMemory>
+  <vcpu placement='static'>{{ vcpu }}</vcpu>
+  <os>
+    <type arch='x86_64' machine='rhel6.5.0'>hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <pae/>
+  </features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
+    {% for volume in volumes %}
+      <disk type='{{ volume["disk_type"] }}' device='disk'>
+        <driver name='qemu' type='{{ volume["driver_type"] }}' cache='none'/>
+
+      {% if volume["source_type"] == "file" %}
+        <source file='{{ volume["file"] }}'/>
+      {% else %}
+        <source dev='{{ volume["file"] }}'/>      
+      {% endif %}
+
+        <target dev='{{ volume["dev"] }}' bus='virtio'/>
+      </disk>
+    {% endfor %}
+    <controller type='usb' index='0' model='ich9-ehci1'>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x7'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci1'>
+      <master startport='0'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci2'>
+      <master startport='2'/>
+    </controller>
+    <controller type='usb' index='0' model='ich9-uhci3'>
+      <master startport='4'/>
+    </controller>
+    <controller type='ide' index='0'>
+    </controller>
+    <interface type='bridge'>
+      <mac address='{{interface_br1}}'/>
+      <source bridge='br1'/>
+      <model type='virtio'/>
+    </interface>
+    <interface type='bridge'>
+      <mac address='{{interface_br2}}'/>
+      <source bridge='br2'/>
+      <model type='virtio'/>
+    </interface>
+    <serial type='pty'>
+      <target port='0'/>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <input type='tablet' bus='usb'/>
+    <memballoon model='virtio'>
+    </memballoon>
+  </devices>
+</domain>
