@@ -10,7 +10,7 @@ import redis
 
 from libs import log, utils, storage 
 from libs import volume   # 这里用到 volume 里面的 path_size 函数.
-from const import REDIS_HOST, REDIS_PORT, REDIS_DB
+from settings import REDIS_HOST, REDIS_PORT, REDIS_DB
 
 
 logger = log.LogHandler().logger

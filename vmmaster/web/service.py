@@ -12,12 +12,8 @@ from tornado import gen
 
 from libs import utils as utils_common
 from libs import asset_utils
-from libs import ldapauth, redisoj
-from web.const import REDIS_DB_VM
 from vmmaster.libs import instance, wmi, utils
 
-
-redis_client_vm = redisoj.RedisClient().get(REDIS_DB_VM)
 
 EXECUTOR = ThreadPoolExecutor(max_workers=500)
 
@@ -89,12 +85,13 @@ class InstancesHandler(tornado.web.RequestHandler):
         version = data.get("version", None)
 
         usage = data["usage"]
-        user_data = data.get("user_data", None)
+        user_data = data.get("user_data", "")
+        node_id = data.get("node_id", 0)
         email = data.get("email", None)
-        
+
         instance_create = instance.Create(area, _type, wmi_id, auto_vmhs, 
                             vmhs, num, version, vcpu, mem, data_size, idc, 
-                            usage, user_data, email)
+                            usage, user_data, node_id, email)
         self.write(json.dumps(instance_create.run()))
 
 
@@ -276,7 +273,7 @@ class ResourcesHandler(tornado.web.RequestHandler):
             return_list.append(_dict)
 
         if show_ignores != 0 and show_ignores != "0":
-            ignore_vmhs = utils.get_ignore_vmhs()
+            ignore_vmhs = utils.get_ignores()
             for i in xrange(len(return_list)):
                 if return_list[i]["vmh"] in ignore_vmhs:
                     return_list[i]["ignored"] = True
@@ -288,7 +285,7 @@ class ResourcesHandler(tornado.web.RequestHandler):
 
                 if return_list[i]["data"]["vmlist"] == []:
                     return_list[i]["vms"] = []
-                else:             
+                else:
                     sn = asset_utils.get_sn_from_hostname(return_list[i]["vmh"])
                     try:
                         return_list[i]["vms"] = [x["hostname"] for x in 

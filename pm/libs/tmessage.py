@@ -7,7 +7,7 @@
 import ujson as json
 
 from libs import redisoj
-from web.const import REDIS_DB_PM
+from settings import REDIS_DB_PM
 
 
 client = redisoj.RedisClient().get(REDIS_DB_PM)

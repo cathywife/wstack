@@ -5,8 +5,8 @@ import logging
 
 from libs import utils
 
-from web.const import LOG_DIR
-from web.const import LOG_NAME
+from settings import LOG_DIR
+from settings import LOG_NAME
 
 
 if not os.path.isdir(LOG_DIR):

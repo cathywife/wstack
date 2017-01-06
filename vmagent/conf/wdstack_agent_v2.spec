@@ -1,19 +1,19 @@
-Summary: wandoujia wdstack agent system
+Summary: DOMAIN wdstack agent system
 Name: wdstack_agent_v2
 Version: 0.0.18
 Release: 1
 License: GPL 2 license
 Group: System Environment/Daemons
-URL: http://www.nosa.me
+URL: http://www.DOMAIN.COM
 Distribution: Linux
-Packager: liningning <liningning@nosa.me>
+Packager: liningning <liningning@DOMAIN.COM>
 
 Requires: python-redis
 Requires: supervisor
 
 
 %description
-This is the wandoujia wdstack agent system
+This is the DOMAIN wdstack agent system
 
 
 %prep

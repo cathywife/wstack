@@ -10,7 +10,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 from libs import utils as utils_common, asset_utils
 from vmmaster.libs import utils
-from web.const import LOG_DIR
+from settings import LOG_DIR
 
 
 if not os.path.isdir(LOG_DIR):

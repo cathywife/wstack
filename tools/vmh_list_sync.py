@@ -10,7 +10,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 from libs import utils as utils_common
 from vmmaster.libs import utils
-from web.const import LOG_DIR
+from settings import LOG_DIR
 
 
 if not os.path.isdir(LOG_DIR):
@@ -48,6 +48,7 @@ def sync():
 
     try:
         utils.update_vmhs()
+        utils.update_ignores()
         logger.info("sync vmh list succ")
     except Exception, e:
         logger.warning("sync vmh list fail, exception:{exception}".format(

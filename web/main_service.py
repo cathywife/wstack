@@ -15,8 +15,8 @@ import tornado.httpserver
 import tornado.escape
 import tornado.netutil
 
-from libs import ldapauth, redisoj, utils
-from web.const import BIND_IP, BIND_PORT
+from libs import ldapauth, user_data, node
+from settings import BIND_IP, BIND_PORT
 
 from pm.web import service as pm_service
 from vmmaster.web import service as vmmaster_service
@@ -26,14 +26,14 @@ class LdapauthapiHandler(tornado.web.RequestHandler):
 
     def post(self):
         username = self.get_argument('username')
-        if username.endswith("@nosa.me"):
-            username = username.strip("@nosa.me")
+        if username.endswith("@DOMAIN.COM"):
+            username = username.strip("@DOMAIN.COM")
         password = self.get_argument("password")
 
         ret_dict = dict() 
         demo = ldapauth.Auth()
         if demo.auth(username, password):
-            email = username + "@nosa.me"
+            email = username + "@DOMAIN.COM"
             self.set_secure_cookie("user", email, expires_days=30)
             ret_dict["result"] = "success"
         else:
@@ -41,33 +41,24 @@ class LdapauthapiHandler(tornado.web.RequestHandler):
         self.write(json.dumps(ret_dict))
 
 
-def get_postcustom(key):
-    """ 获取 post custom 脚本内容.
-
-    """
-    from libs import redisoj
-    from web.const import REDIS_DB_COMMON
-
-    # REDIS_DB_COMMON 专门用于存储 user_data 信息.
-    client = redisoj.RedisClient().get(REDIS_DB_COMMON)
-    if client.exists(key):
-        return json.loads(client.get(key))
-    else:
-        return None
-
-
-class PostCustomHandler(tornado.web.RequestHandler):
+class UserDataHandler(tornado.web.RequestHandler):
 
     def get(self):
-        key = self.get_argument('key')
-        self.write(json.dumps(get_postcustom(key)))
+        hostname = self.get_argument('hostname')
+        self.write(json.dumps(user_data.get_user_data(hostname)))
+
+
+class NodeHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        hostname = self.get_argument('hostname')
+        self.write(json.dumps(node.get_node_id(hostname)))
 
 
 HANDLERS = [
     # Ldap 认证.
     (r"/api/v1/ldapauth", LdapauthapiHandler), 
     # 物理机装机 API, 不是 RESTful API.
-    (r"/api/v1/pm/check/?", pm_service.CheckHandler), 
     (r"/api/v1/pm/create/?", pm_service.CreateHandler),
     (r"/api/v1/pm/create_man/?", pm_service.CreateManHandler),
     (r"/api/v1/pm/message/?", pm_service.MessageHandler),
@@ -83,7 +74,9 @@ HANDLERS = [
     # (r"/api/v1/vm/switches/?", vmmaster_service.SwitchesHandler),          
     (r"/api/v1/vm/resources/?", vmmaster_service.ResourcesHandler),
     # 用于获取装机之后的自定义脚本, 适用于物理机和虚拟机.
-    (r"/api/v1/postcustom/?", PostCustomHandler)
+    (r"/api/v1/user_data/?", UserDataHandler),
+    # 基于机器名获取 node, 供 Puppet ENC 脚本调用.
+    (r"/api/v1/node/?", NodeHandler),
 ]
 
 SETTINGS = {

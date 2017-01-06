@@ -8,10 +8,10 @@ import requests
 import ujson as json
 
 
-
-from web.const import (ASSET_HOST, ASSET_IDC_API, ASSET_HOSTNAME_API,
+from settings import (ASSET_HOST, ASSET_IDC_API, ASSET_HOSTNAME_API,
                       ASSET_APPLY_API, ASSET_UPDATE_API, ASSET_QUERY,
-                      ASSET_DETAIL_API, ASSET_STATUS_API)
+                      ASSET_DETAIL_API, ASSET_STATUS_API, ASSET_SERVERS_API)
+from settings import X_Loki_Token
 
 
 def get_idcs():
@@ -48,7 +48,7 @@ def apply_hostname_ip(sn, _type, hostname_key, idc, network):
     """
     if "*" in hostname_key:
         key = "hostname_pattern"
-	hostname_key = hostname_key + "." + idc
+        hostname_key = hostname_key + "." + idc
     else:
         key = "hostname_prefix"
     url = "http://" + ASSET_HOST + ASSET_APPLY_API
@@ -114,6 +114,12 @@ def query_from_fuzzy_word(value):
     return requests.get(url).json()
 
 
+def get_hostnames_from_node(node_id):
+    url = "http://" + ASSET_HOST  + ASSET_SERVERS_API + "?type=recursive&node_id={0}&with_weight=0".format(node_id)
+    data = requests.get(url).json()["data"]
+    return [d["hostname"] for d in data]
+
+
 ###
 
 
@@ -176,3 +182,24 @@ def is_exist_for_sn(sn):
 
 #     """
 #     pass
+
+
+def bind_server_to_node(node_id, hostnames):
+    """ 绑定机器到节点.
+
+    """
+    node_id = int(node_id)
+    if node_id == 0:
+        return
+
+    url = "http://{0}/api/nodes/{1}/servers".format(ASSET_HOST, node_id)
+    data = {
+        "hostnames": hostnames
+    }
+    headers = {
+        "Content-Type": "application/json", 
+        "X-Loki-Token": X_Loki_Token
+    }
+    ret = requests.put(url, json=data, headers=headers)
+    if ret.status_code != 200:
+        raise Exception("bind {0} to node {1} fail".format(hostnames, node_id))

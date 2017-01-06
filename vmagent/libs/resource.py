@@ -3,7 +3,7 @@
 import re
 
 from libs import log, utils
-from const import STORAGE_POOL
+from settings import STORAGE_POOL
 
 
 logger = log.LogHandler().logger

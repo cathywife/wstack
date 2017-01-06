@@ -7,9 +7,7 @@ import hashlib
 import binascii
 
 
-LDAP_HOST = "ldap.corp.nosa.me"
-LDAP_DN = "ou=People,dc=nosa,dc=com"
-LDAP_USER = "cn=root,dc=nosa,dc=com"
+from settings import LDAP_HOST, LDAP_DN, LDAP_USER
 
 
 class Auth(object):
@@ -18,7 +16,7 @@ class Auth(object):
         self.ldap_host = ldap_host
 
     def auth(self, user, passwd):
-        self.dn = 'uid=%s,ou=People,dc=nosa,dc=com' % user
+        self.dn = 'uid=%s,ou=People,dc=DOMAIN,dc=com' % user
         self.ldapconn = ldap.initialize('ldap://%s' % self.ldap_host)
         try:
             self.ldapconn.simple_bind_s(self.dn, passwd)

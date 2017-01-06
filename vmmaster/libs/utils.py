@@ -14,8 +14,7 @@ import ujson as json
 
 from libs import asset_utils, log, mail, redisoj
 
-from web.const import (OS_SIZE, REDIS_DB_VM, VM_AREAS, 
-                       OVER_CONFS, PUPPET_CA_HOST)
+from settings import (OS_SIZE, REDIS_DB_VM, VM_AREAS, IGNORED_VMHS_NODE)
 
 
 logger = log.LogHandler().logger
@@ -59,24 +58,6 @@ def get_idc_from_hostname(hostname):
     return hostname.split(".")[-1]
 
 
-def get_prefix_from_hostname(hostname):
-    """ 根据 hostname 返回前缀.
-
-    比如, vmh100.hy01 返回 vmh.
-
-    """
-    return hostname.split(".")[0].strip("0123456789")
-
-
-def get_area_from_prefix(vmh_prefix):
-    """ 根据 vmh_prefix 找到对应的 area.
-
-    """
-    for vm_area in VM_AREAS:
-        if VM_AREAS[vm_area] == vmh_prefix:
-            return vm_area
-
-
 def get_network_from_ip(ip):
     """ 根据 ip 获取网络地址.
 
@@ -102,6 +83,15 @@ def get_idcs():
     return list(client.smembers("idcs"))
 
 
+def query_area(vmh):
+    """ 基于 vmh 查询所属 area.
+
+    """
+    for area in VM_AREAS:
+        if vmh in get_vmhs(area):
+            return area
+
+
 def update_idcs():
     """ 设置机房信息.
 
@@ -118,55 +108,44 @@ def update_idcs():
             client.srem("idcs", idc)
 
 
-def get_vmhs_from_asset():
-    """ 得到有效的 vmh 列表.
-
-    """
-    return asset_utils.get_vmhs()
-
-
-def update_vmhs(email=True, is_ignore=True):
+def update_vmhs(email=True):
     """ 更新 vmhs 到数据库.
 
     """
-    vmhs = get_vmhs_from_asset()
-    for vmh in vmhs:
-        # 根据主机名拿到 area.
-        vmh_prefix = get_prefix_from_hostname(vmh)
-        area = get_area_from_prefix(vmh_prefix)
-        if area is None:
-            continue
+    vmhs_all = []   # vmhs_all 是有效宿主机列表.
 
-        # 拿到 idc.
-        idc = get_idc_from_hostname(vmh)
+    for area in VM_AREAS:
+        node_id = VM_AREAS[area]["node_id"]
+        vmhs = asset_utils.get_hostnames_from_node(node_id)
+        vmhs_all.extend(vmhs)
+        for vmh in vmhs:
+            idc = get_idc_from_hostname(vmh)
+            if vmh not in get_vmhs(area, idc):
+                add_vmh(area, idc, vmh)
 
-        # 如果 vmh 不在 redis, 则加入.
-        if vmh not in get_vmhs(area, idc):
-            add_vmh(area, idc, vmh)
-
-            # 获取 vmh 资源.
-            try:
-                update_info_from_rpc(vmh)
-            except Exception, e:
-                logger.info("get vmh:{vmh} error:{error}".format(vmh=vmh, error=e))
-                del_vmh(area, idc, vmh)
-                continue
-
-            # 设置 vmh 的网络信息.
-            ip = asset_utils.get_ip_from_hostname(vmh)
-            network = get_network_from_ip(ip)
-            add_network(vmh, network)
-
-            # 记日志和发邮件.
-            logger.info("vmh:{vmh}, network:{network}".format(vmh=vmh, network=network))
-            if email:
-                subject = u"|wdstack 宿主机| {vmh} 被添加到 {area}".format(vmh=vmh, area=area)
-                mail.send(None, subject, "") 
+                # 获取 vmh 资源.
+                try:
+                    update_info_from_rpc(vmh)
+                except Exception, e:
+                    logger.info("get vmh:{vmh} error:{error}".format(vmh=vmh, error=e))
+                    del_vmh(area, idc, vmh)
+                    continue
+    
+                # 设置 vmh 的网络信息.
+                ip = asset_utils.get_ip_from_hostname(vmh)
+                network = get_network_from_ip(ip)
+                add_network(vmh, network)
+    
+                # 记日志和发邮件.
+                logger.info("vmh:{vmh}, network:{network}".format(vmh=vmh, network=network))
+                if email:
+                    subject = u"|wdstack 宿主机| {vmh} 被添加到 {area}".format(vmh=vmh, area=area)
+                    mail.send(None, subject, "") 
 
     # 删除不在资产系统里的 vmh, 保持本地 vmh 库最新.
     for area in VM_AREAS:
         for vmh in get_vmhs(area):
-            if vmh not in vmhs:   # vmhs 是有效宿主机列表.
+            if vmh not in vmhs_all:
                 idc = get_idc_from_hostname(vmh)
                 del_vmh(area, idc, vmh)
 
@@ -353,45 +332,47 @@ def get_ignores():
     return list(client.smembers("ignores"))
 
 
-def add_ignore(sn):
+def add_ignore(hostname):
     """ 增加被忽略的虚拟机.
 
     被忽略的宿主机列表通过 redis set 数据结构存储.
 
     """
-    if isinstance(sn, list):
-        [client.sadd("ignores", i) for i in sn]
+    if isinstance(hostname, list):
+        [client.sadd("ignores", i) for i in hostname]
     else:
-        client.sadd("ignores", sn)
+        client.sadd("ignores", hostname)
 
 
-def del_ignore(sn):
+def del_ignore(hostname):
     """ 删除被忽略的虚拟机.
 
     被忽略的宿主机列表通过 redis set 数据结构存储.
 
     """
-    if isinstance(sn, list):
-        [client.srem("ignores", i) for i in sn]
+    if isinstance(hostname, list):
+        [client.srem("ignores", i) for i in hostname]
     else:
-        client.srem("ignores", sn)
+        client.srem("ignores", hostname)
 
 
-def get_ignore_vmhs():
-    ignores = get_ignores()
+def update_ignores():
+    """ 更新被忽略的宿主机.
 
-    ignore_vmhs = []
-    for sn in ignores:
-        try:
-            hostname = asset_utils.get_value_from_sn(sn, "hostname")
-            ignore_vmhs.append(hostname)
-        except Exception, e:
-            continue
-    return ignore_vmhs
+    """
+    ignores = asset_utils.get_hostnames_from_node(IGNORED_VMHS_NODE)
+    ignores_now = get_ignores()
+    for i in ignores:
+        if i not in ignores_now:
+            add_ignore(i)
+
+    for i in ignores_now:
+        if i not in ignores:
+            del_ignore(i)
 
 
 def wait_status(sn, timeout=1200):
-    """ 查询和等待机器的 status 是否为 online.
+    """ 查询和等待机器是否上报到资产系统.
 
     """
     timetotal = 0
@@ -401,14 +382,13 @@ def wait_status(sn, timeout=1200):
         try:
             status = asset_utils.get_value_from_sn(sn, "status")
             if status == "online":
-                return True
-            else:
-                raise Exception("{sn} status is not online".format(sn=sn))
+                return
         except Exception, e:
+            pass
+        finally:
             time.sleep(interval)
             timetotal += interval
-
-    return False
+    raise Exception("not uploaded to asset sys")
 
 
 def get_vmhs_on_demand(area, idc, num, vcpu, mem, data_size, _reverse):
@@ -432,7 +412,7 @@ def get_vmhs_on_demand(area, idc, num, vcpu, mem, data_size, _reverse):
 
     # 去除忽略的宿主机, 拿到有效的宿主机列表.
     vmhs = get_vmhs(area, idc)
-    for ignore_vmh in get_ignore_vmhs():
+    for ignore_vmh in get_ignores():
         if ignore_vmh in vmhs:
             vmhs.remove(ignore_vmh)
 
@@ -561,14 +541,12 @@ def update_info_from_rpc(vmh):
     space = rpc_client.resource_space()
     _type = rpc_client.resource_type()
 
-    vmh_prefix = get_prefix_from_hostname(vmh)
-    area = get_area_from_prefix(vmh_prefix)
-
+    area = query_area(vmh)
     for key in vcpu:
-        vcpu[key] = vcpu[key] * (1 + OVER_CONFS[area])
+        vcpu[key] = vcpu[key] * (1 + VM_AREAS[area]['over_conf'])
 
     for key in mem:
-        mem[key] = mem[key] * (1 + OVER_CONFS[area])
+        mem[key] = mem[key] * (1 + VM_AREAS[area]['over_conf'])
 
     update_info(vmh, "vcpu", vcpu)
     update_info(vmh, "mem", mem)
@@ -588,45 +566,3 @@ def get_vmname_from_hostname(hostname):
         "vmh": vmh, 
         "vmname": vmname
     }
-
-
-def get_puppet_cert(hostname):
-    """ 查看给定机器的证书信息.
-
-    curl 命令格式如下:
-        curl -k -H 'Accept: pson' https://PUPPET_CA_HOST/production/certificate_status/hostname
-
-    """
-    from requests import Request, Session
-    url = "https://{puppet_ca_host}/production/certificate_status/{hostname}".format(
-        puppet_ca_host=PUPPET_CA_HOST, hostname=hostname)
-    s = Session()
-    req = Request('GET', url,
-        headers={"Accept": "pson"}
-    )
-    prepped = req.prepare()
-    r = s.send(prepped,
-        verify=False,
-    )
-    return r.status_code
-
-
-def delete_puppet_cert(hostname):
-    """ 删除给定机器的证书.
-
-    curl 命令格式如下:
-        curl -k -X DELETE -H 'Accept: pson' https://PUPPET_CA_HOST/production/certificate_status/hostname
-
-    """
-    from requests import Request, Session
-    url = "https://{puppet_ca_host}/production/certificate_status/{hostname}".format(
-        puppet_ca_host=PUPPET_CA_HOST, hostname=hostname)
-    s = Session()
-    req = Request('DELETE', url,
-        headers={"Accept": "pson"}
-    )
-    prepped = req.prepare()
-    r = s.send(prepped,
-        verify=False,
-    )
-    return r.status_code

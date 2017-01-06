@@ -10,11 +10,11 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 import ujson as json
 
-from libs import asset_utils, dns_utils, log, mail, redisoj
+from libs import asset_utils, dns_utils, log, mail, redisoj, user_data, node, puppet
 from libs import utils as utils_common
 from vmmaster.libs import utils, wmi
-from web.const import (LOCATIONS, NETMASK_DEFAULT, KSS, BRIDGE_DEFAULT,
-                       OS_SIZE, REDIS_DB_COMMON, REDIS_DB_VM, VM_AREAS)
+from settings import (LOCATIONS, NETMASK_DEFAULT, KSS, BRIDGE_DEFAULT,
+                       OS_SIZE, REDIS_DB_VM, VM_AREAS)
 
 
 class Create(object):
@@ -40,7 +40,7 @@ class Create(object):
     """
     def __init__(self, area, _type, wmi_id, auto_vmhs, vmhs,
                  num, version, vcpu, mem, data_size, idc,
-                 usage, user_data, email):
+                 usage, user_data, node_id, email):
 
         """
         common_data 任务的公共数据;
@@ -64,6 +64,7 @@ class Create(object):
         self.idc = idc
         self.usage = usage
         self.user_data = user_data
+        self.node_id = node_id
         self.email = email
 
         self.vm_areas = VM_AREAS
@@ -75,7 +76,6 @@ class Create(object):
 
         self.logger = log.LogHandler().logger
         self.client = redisoj.RedisClient().get(REDIS_DB_VM)
-        self.client_user_data = redisoj.RedisClient().get(REDIS_DB_COMMON)
 
         # 初始化任务的 code 和 error_message.
         self.code = 0
@@ -131,9 +131,12 @@ class Create(object):
         rpc_client = data["rpc_client"]
         try:
             rpc_client.instance_create(data)
+            utils.wait_status(data["sn"])
+            asset_utils.bind_server_to_node(data["node_id"], [data["hostname"]])
         except Exception, e:
-            # 装失败了, 在资产系统中删除.
+            # 装失败了, 清理工作.
             asset_utils.delete_from_sn(data["sn"])
+            dns_utils.record_delete(data["hostname"])
 
             error_message = traceback.format_exc()
             self.logger.warning(error_message)
@@ -141,35 +144,8 @@ class Create(object):
             data["error_message"] = error_message
             return data
 
-        if not utils.wait_status(data["sn"]):
-            error_message = "not uploaded to asset sys"
-            self.logger.warning(error_message)
-
-            # 装失败了, 在资产系统中删除.
-            if asset_utils.is_exist_for_sn(data["sn"]):
-                asset_utils.delete_from_sn(data["sn"])
-
-            data["code"] = 1
-            data["error_message"] = error_message
-            utils.update_info_from_rpc(data["vmh"])
-            return data
-
-        if not dns_utils.record_exist(data["hostname"]):
-            error_message = "dns record not added"
-            self.logger.warning(error_message)
-
-            # 装失败了, 在资产系统中删除.
-            if asset_utils.is_exist_for_sn(data["sn"]):
-                asset_utils.delete_from_sn(data["sn"])
-
-            data["code"] = 1
-            data["error_message"] = error_message
-            utils.update_info_from_rpc(data["vmh"])
-            return data
-
         data["code"] = 0
         data["error_message"] = None
-        utils.update_info_from_rpc(data["vmh"])
         return data
 
     def get_unique_data(self):
@@ -216,16 +192,12 @@ class Create(object):
             data["gateway"] = gateway
 
             # 清除 puppet 证书.
-            for h in [hostname, hostname + ".nosa.me"]:
-                if utils.get_puppet_cert(h) == 200:
-                    if utils.delete_puppet_cert(h) == 200:
-                        self.logger.info("{hostname} cert deleted".format(hostname=h))
-                    else:
-                        self.logger.info("{hostname} cert delete failed".format(hostname=h))
+            puppet.check_puppet_cert(hostname)
 
-            # 如果 dns 里面已经有 hostname 解析, 删除.
+            # 增加 DNS.
             if dns_utils.record_exist(data["hostname"]):
                 dns_utils.record_delete(data["hostname"])
+            dns_utils.record_add(hostname, ip)
 
             # 不同的 type 要有不同的处理.
             if self.type == "wmi":
@@ -241,6 +213,9 @@ class Create(object):
 
             # 设置 user data, 机器装好之后会取数据.
             self.set_user_data(data["hostname"])
+
+            # 设置 node_id.
+            self.set_node_id(data["hostname"])
 
             # 保存 data.
             self.unique_data.append(data)
@@ -305,7 +280,7 @@ class Create(object):
                 message = "resource not enough"
                 raise Exception(message)
             self.vmhs = vmhs
-        self.logger.info(str(self.vmhs))
+        self.logger.info(self.vmhs)
 
     def get_common_data(self):
         """ 获取公共数据.
@@ -333,9 +308,10 @@ class Create(object):
         data["idc"] = self.idc
         data["usage"] = self.usage
         data["user_data"] = self.user_data
+        data["node_id"] = self.node_id
         data["email"] = self.email
         self.common_data = data
-        self.logger.info(str(self.common_data))
+        self.logger.info(self.common_data)
 
     def set_user_data(self, hostname):
         """ 设置 user data.
@@ -343,11 +319,15 @@ class Create(object):
         装机之后机器会获取并执行 user_data 中的内容.
 
         """
-        if self.user_data is None:
-            self.client_user_data.exists(hostname) and \
-            self.client_user_data.delete(hostname)
-        else:
-            self.client_user_data.set(hostname, json.dumps(self.user_data))
+        user_data.set_user_data(hostname, self.user_data)
+
+    def set_node_id(self, hostname):
+        """ 设置 node_id.
+
+        用于配置机器.
+
+        """
+        node.set_node_id(hostname, self.node_id)
 
 
 class Oper(object):

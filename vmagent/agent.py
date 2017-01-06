@@ -5,6 +5,7 @@ import SocketServer
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
+from settings import PORT
 from libs import resource, instance, wmi
 
 
@@ -16,7 +17,7 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
 
 def main():
-    server = ThreadXMLRPCServer(("0.0.0.0", 8000),
+    server = ThreadXMLRPCServer(("0.0.0.0", PORT),
                                 requestHandler=RequestHandler,
                                 allow_none=True)
         

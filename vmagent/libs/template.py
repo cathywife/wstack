@@ -6,7 +6,7 @@
 
 from jinja2 import Environment, FileSystemLoader
 
-from const import VM_TEMPLATE_DIR, VM_TEMPLATE_FILE
+from settings import VM_TEMPLATE_DIR, VM_TEMPLATE_FILE
 
 
 def gen(data):

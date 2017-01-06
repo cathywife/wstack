@@ -13,7 +13,7 @@ def check_mfs():
     try:
         utils.shell("df -h |grep /mfs")   # 先判断是否已经挂载 mfs.
     except Exception, e:
-        cmd = "curl http://download.hy01.nosa.me/download/install_mfs_client.sh |bash"
+        cmd = "curl http://download.hy01.DOMAIN.COM/download/install_mfs_client.sh |bash"
         utils.shell(cmd)
         utils.shell("df -h |grep /mfs")
 
@@ -25,7 +25,7 @@ def check_nbd():
     try:
         utils.shell("/sbin/lsmod | grep nbd")
     except Exception, e:
-        cmd = "curl http://download.hy01.nosa.me/download/install_nbd.sh |bash"
+        cmd = "curl http://download.hy01.DOMAIN.COM/download/install_nbd.sh |bash"
         utils.shell(cmd)
         utils.shell("/sbin/lsmod | grep nbd")
         return
@@ -40,7 +40,7 @@ def get_url_from_filename(file_name):
     """ 根据文件名返回下载地址.
 
     """
-    return "http://download.hy01.nosa.me/download/wmi/{file_name}".format(
+    return "http://download.hy01.DOMAIN.COM/download/wmi/{file_name}".format(
         file_name=file_name)
 
 

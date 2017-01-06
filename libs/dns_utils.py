@@ -6,7 +6,7 @@ import urllib
 import ujson as json
 
 
-from web.const import (DNS_HOST, DNS_AUTH_API, 
+from settings import (DNS_HOST, DNS_AUTH_API, 
                        DNS_AUTH_USERNAME, DNS_AUTH_PASSWD)
 
 
@@ -83,3 +83,14 @@ def record_delete(hostname):
     ret = _object.post_wrapper(uri, data_dict)
     if ret["status"] != "success":
         raise Exception("delete dns of {hostname} fail".format(hostname=hostname))
+
+
+def record_add(hostname, ip):
+    uri = "api/v1/add"
+    data_dict = {
+        "dnslist": json.dumps([{"hostname": hostname, "ip": ip}])
+    }
+    _object = DnsApi()
+    ret = _object.post_wrapper(uri, data_dict)
+    if ret["status"] != "success":
+        raise Exception("add dns of {hostname},{ip} fail".format(hostname=hostname, ip=ip))

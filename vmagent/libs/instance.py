@@ -8,9 +8,9 @@ import os
 
 import redis
 
-from libs import (dnsapi, log, utils, volume, interface, 
+from libs import (log, utils, volume, interface, 
                   wmi, template, storage)
-from const import DOMAIN, ISO_URLS, NAMESERVER
+from settings import DOMAIN, ISO_URLS, NAMESERVER
 
 
 logger = log.LogHandler().logger
@@ -199,12 +199,6 @@ def create_wmi(name, uuid, vcpu, mem, os_size, data_size, ip,
             hostname=hostname, hwaddr_em2=interface_br2, 
             hwaddr_em1=interface_br1)
     utils.shell(cmd)
-
-    # 增加 DNS 解析.
-    ret = dnsapi.add_record(hostname, ip)
-    if ret["status"] != "success":
-        logger.warning(ret["result"])
-        raise Exception(ret["result"])
 
 
 def create(data):

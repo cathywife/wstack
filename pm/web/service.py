@@ -6,43 +6,12 @@ import ujson as json
 
 import tornado.web
 
-from libs import ldapauth, redisoj, utils
-from web.const import REDIS_DB_PM
-from pm.libs import check, create, create_man, tmessage
+from libs import redisoj, utils
+from settings import REDIS_DB_PM
+from pm.libs import auto, man, tmessage
 
 
-client_pm = redisoj.RedisClient().get(REDIS_DB_PM)
-
-
-class CheckHandler(tornado.web.RequestHandler):
-    @utils.authenticate_decorator
-    def post(self):
-        """ 检查物理机是否可以正常装机.
-
-        检查项包括:
-        1). 是否可以根据 SN 获取到 ILO IP.
-        2). 是否能够 获取到 ILO 的密码.
-        3). 是否能够设置第二块网卡支持 PXE 启动.
-        4). 是否能够设置启动顺序.
-
-        """
-        data = json.loads(self.request.body)
-        idc = data["idc"]
-        device = data["device"]
-        sns = data["sns"]
-        email = data.get("email", None)
-
-        common_data = list()
-        for sn in sns:
-            item = {
-                "idc": idc, 
-                "device": device, 
-                "sn": sn
-            }
-            common_data.append(item)
-
-        return_data = check.multi(common_data, email)
-        self.write(json.dumps(return_data))
+client = redisoj.RedisClient().get(REDIS_DB_PM)
 
 
 class CreateHandler(tornado.web.RequestHandler):
@@ -81,7 +50,8 @@ class CreateHandler(tornado.web.RequestHandler):
         usage = data["usage"]
         device = data["device"]
         sns = data["sns"]
-        user_data = data.get("user_data", None)
+        user_data = data.get("user_data", "")
+        node_id = data.get("node_id", 0)
         email = data.get("email", None)
 
         common_data = list()
@@ -89,15 +59,16 @@ class CreateHandler(tornado.web.RequestHandler):
             item = {
                 "idc": idc, 
                 "type": _type,
-                "version": version,                    
+                "version": version,
                 "usage": usage, 
                 "device": device, 
                 "sn": sn, 
-                "user_data": user_data
+                "user_data": user_data,
+                "node_id": node_id
             }
             common_data.append(item)
 
-        return_data = create.multi(common_data, email)
+        return_data = auto.multi(common_data, email)
         self.write(json.dumps(return_data))
 
 
@@ -126,8 +97,9 @@ class CreateManHandler(tornado.web.RequestHandler):
         version = data.get("version", "centos6")
         usage = data["usage"]
         sns = data["sns"]
-        user_data = data.get("user_data", None)
+        user_data = data.get("user_data", "")
         email = data.get("email", None)
+        node_id = data.get("node_id", 0)        
 
         common_data = list()
         for sn in sns:
@@ -137,13 +109,14 @@ class CreateManHandler(tornado.web.RequestHandler):
                 "version": version,
                 "usage": usage, 
                 "sn": sn, 
-                "user_data": user_data
+                "user_data": user_data,
+                "node_id": node_id
             }
             common_data.append(item)
 
         # 首先检查是否有其他 type 和 version 的机器正在安装, 
         # 如果有, 退出; 如果没有, 才继续.
-        running_tasks = client_pm.keys("default*")
+        running_tasks = client.keys("default*")
         if len(running_tasks) > 1:
             error_message = "other different task is running:{running_tasks}".format(
                 running_tasks=running_tasks)
@@ -154,7 +127,7 @@ class CreateManHandler(tornado.web.RequestHandler):
             self.write(json.dumps(return_data))
             self.finish()
 
-        return_data = create_man.multi(common_data, email)
+        return_data = man.multi(common_data, email)
         self.write(json.dumps(return_data))
 
 

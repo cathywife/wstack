@@ -11,7 +11,7 @@ import ujson as json
 
 from libs import asset_utils, log, mail, redisoj
 from libs import utils as common_utils
-from web.const import VM_AREAS, REDIS_DB_VM
+from settings import VM_AREAS, REDIS_DB_VM
 from vmmaster.libs import utils
 
 

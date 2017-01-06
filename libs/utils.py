@@ -96,10 +96,10 @@ def authenticate_decorator(func):
         user_email = self.get_secure_cookie("user")
         if user_email:
             fs = user_email.split("@")
-            if fs[1] != "nosa.me":
+            if fs[1] != "DOMAIN.COM":
                 self.clear_cookie("user")
                 self.write(
-                    "You have to login with your nosa.me account...")
+                    "You have to login with your DOMAIN.COM account...")
                 return
             else:
                 apply(func, args, kwargs)

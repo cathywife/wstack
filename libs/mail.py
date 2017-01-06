@@ -12,11 +12,10 @@ from email.header import Header
 from jinja2 import Environment
 
 
-SMTP_HOST = 'mx.hy01.nosa.me'
+SMTP_HOST = 'mx.hy01.DOMAIN.COM'
 SMTP_PORT = 25
 CONT_MAIL_LIST = [
-    'liningning@nosa.me',
-    'sre-team@nosa.me'
+    'liningning@DOMAIN.COM',
 ]
 
 """
@@ -65,7 +64,7 @@ def sanitize_subject(subject):
 
 
 def mail(mailto, subject, content):
-    mail_from = 'noreply@nosa.me'
+    mail_from = 'noreply@DOMAIN.COM'
     mail_cc = None
     mail_body_type = 'html'
 
@@ -106,7 +105,7 @@ def content_format(data=None, main=None):
         return
 
     KEYS = [
-        'wmi_id',
+        "wmi_id",
         "area",
         "idc", 
         "type", 
@@ -124,6 +123,7 @@ def content_format(data=None, main=None):
         "sn", 
         "hostname",
         "ip", 
+        "node_id",
         "code",
         "message",
         "error_message",

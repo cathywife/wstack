@@ -3,7 +3,7 @@
 import redis
 
 from libs import utils
-from web.const import (REDIS_HOST, REDIS_PORT, REDIS_DB_PM, 
+from settings import (REDIS_HOST, REDIS_PORT, REDIS_DB_PM, 
                        REDIS_DB_VM, REDIS_DB_COMMON) 
 
 

@@ -7,7 +7,7 @@
 import sys
 
 from libs import utils, log
-from const import STORAGE_POOL
+from settings import STORAGE_POOL
 
 
 logger = log.LogHandler().logger

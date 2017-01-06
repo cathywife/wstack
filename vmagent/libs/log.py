@@ -5,8 +5,8 @@ import time
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
-from const import LOG_DIR
-from const import LOG_NAME
+from settings import LOG_DIR
+from settings import LOG_NAME
 
 
 if not os.path.isdir(LOG_DIR):

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+NAMESERVER = "10.19.20.234"
+DOMAIN = "DOMAIN.COM"
+USER_DATA_URL = "http://wdstack.internal.DOMAIN.COM/script/gen_user_data.sh"
+
 name=$1
 uuid=$2
 ip=$3
@@ -22,7 +26,7 @@ virsh define /etc/libvirt/qemu/$name.xml || exit 1
 # 6. 删除 /etc/udev/rules.d/70-persistent-net.rules;
 # 7. 删除 /var/lib/puppet;
 # 8. 删除 /home/work/lighttpd/nginx_check/index.html;
-# 9. 配置 post custom 脚本;
+# 9. 配置 user data 脚本;
 # 额外的, 有些镜像的 /etc/resolv.conf 是老的, 导致无法解析, 为了解决这个问题, 我们覆盖
 # /etc/resolv.conf.
 #
@@ -45,9 +49,9 @@ command "/bin/rm -rf /etc/udev/rules.d/70-persistent-net.rules"
 command "/bin/rm -rf /var/lib/puppet/"
 command "/bin/rm -f /home/work/lighttpd/nginx_check/index.html"
 
-write-append /etc/rc.d/rc.local "curl http://wdstack.internal.nosa.me/script/gen_post_custom.sh | bash"
+write-append /etc/rc.d/rc.local "curl $USER_DATA_URL | bash"
 
-write /etc/resolv.conf "search nosa.me\nnameserver 10.19.20.234"
+write /etc/resolv.conf "search ${DOMAIN}\nnameserver $NAMESERVER"
 _EOF_
 
 virsh start $name || exit 1

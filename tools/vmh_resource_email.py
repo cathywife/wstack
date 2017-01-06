@@ -8,12 +8,12 @@ import time
 
 from libs import mail
 from vmmaster.libs import utils
-from web.const import VM_AREAS
+from settings import VM_AREAS
 
 
 def get_resource(area, idc):
     return_list = list()
-    ignore_vmhs = utils.get_ignore_vmhs()
+    ignore_vmhs = utils.get_ignores()
     for vmh in utils.get_vmhs(area, idc):
         _dict = {
             "area": area,
@@ -40,7 +40,7 @@ def _main():
 
     content = u"""每个 area 和 idc 剩余资源 TOP100.<br/><br/>
         可以访问下面 url 查看具体 area 和 idc 的资源:<br/><br/>
-        http://wdstack.internal.nosa.me/api/v1/vm/resources/?area=apps&idc=hlg01
+        http://wdstack.internal.DOMAIN.COM/api/v1/vm/resources/?area=apps&idc=hlg01
         <br/><br/><br/><br/>
     """
 
