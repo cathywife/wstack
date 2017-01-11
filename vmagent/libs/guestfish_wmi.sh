@@ -1,8 +1,8 @@
 #!/bin/bash
 
-NAMESERVER = "10.19.20.234"
-DOMAIN = "DOMAIN.COM"
-USER_DATA_URL = "http://wdstack.internal.DOMAIN.COM/script/gen_user_data.sh"
+NAMESERVER="10.19.20.234"
+DOMAIN="DOMAIN.COM"
+USER_DATA_URL="http://wdstack.internal.DOMAIN.COM/script/gen_user_data.sh"
 
 name=$1
 uuid=$2
